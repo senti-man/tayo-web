@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  studentId    String   @unique
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  rideRequests RideRequest[]
+  participants RideParticipant[]
+  messages     Message[]
+}
+
+// Holds a signup in progress until its email verification code is confirmed.
+// Nothing is written to User until verification succeeds.
+model PendingSignup {
+  id           String   @id @default(cuid())
+  studentId    String
+  email        String   @unique
+  name         String
+  passwordHash String
+  codeHash     String
+  attempts     Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model RideRequest {
+  id         String   @id @default(cuid())
+  creatorId  String
+  creator    User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  originName String
+  originLat  Float
+  originLng  Float
+  destName   String
+  destLat    Float
+  destLng    Float
+
+  departAt   DateTime
+  capacity   Int      @default(4)
+  note       String   @default("")
+  status     String   @default("OPEN") // OPEN | MATCHED | CANCELLED
+
+  createdAt  DateTime @default(now())
+
+  participants RideParticipant[]
+  messages     Message[]
+}
+
+model RideParticipant {
+  id            String   @id @default(cuid())
+  rideRequestId String
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt      DateTime @default(now())
+
+  @@unique([rideRequestId, userId])
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  rideRequestId String
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content       String
+  createdAt     DateTime @default(now())
+
+  @@index([rideRequestId, createdAt])
+}
